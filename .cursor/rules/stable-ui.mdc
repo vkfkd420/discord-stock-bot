@@ -1,0 +1,27 @@
+---
+description: /브리핑·/뉴스 Discord UI 고정 — 사용자 요청 없이 레이아웃 변경 금지
+globs: src/service/briefing*.js,src/service/briefingFormat.js,src/service/briefingDelivery.js,src/ui/newsView.js,src/commands/news.js,src/commands/briefing.js
+alwaysApply: false
+---
+
+# Stable Discord UI (브리핑·뉴스)
+
+## /브리핑 — 고정 스펙 (v1.0)
+
+- 8섹션 헤더·순서: `briefingFormat.js`의 `CANONICAL_SECTIONS`가 단일 진실 소스
+- LLM 출력은 `normalizeBriefingMarkdown()`으로 항상 동일 틀로 재조립
+- Discord 전달: 헤더 embed + 시장 스냅샷 + 섹션 embed + `.md` 첨부 (`briefingDelivery.js`)
+- **변경 금지**: 섹션 개수/헤더 문구, embed sanitize 로직, 첨부 파일 방식
+
+## /뉴스 — 고정 스펙 (v1.0)
+
+- UI 단일 모듈: `src/ui/newsView.js` (명령어는 여기만 import)
+- 레이아웃: **content 1줄 + 기사 embed 1개 + 버튼 3개**(이전/다음/기사보기|링크없음)
+- embed 색상: `#5865f2` 고정 (영향도별 색상 변경 금지)
+- 필드 고정: `📊 영향` | `🏷️ 섹터` | `🕐 게시`
+- **변경 금지**: `discordUi.js`에 뉴스 UI 추가, 페이지당 embed 개수, 버튼 구성
+
+## 공통
+
+- UI 개선 요청이 없으면 기존 stable 모듈만 수정·확장
+- 새 UI 실험은 별도 파일/명령어로 분리

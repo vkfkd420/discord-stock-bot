@@ -1,11 +1,11 @@
 const {
     SlashCommandBuilder,
-    EmbedBuilder,
     StringSelectMenuBuilder,
     StringSelectMenuOptionBuilder,
     ActionRowBuilder,
 } = require('discord.js');
 const { searchStock, getQuote } = require('../service/stockSearch');
+const { buildStockEmbed } = require('../utils/discordUi');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -66,20 +66,9 @@ async function sendQuoteEmbed(interaction, stock) {
         return interaction.editReply(`❌ **${stock.name}** 시세를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.`);
     }
 
-    const embed = new EmbedBuilder()
-        .setTitle(`${quote.isUp ? '📈' : '📉'} ${quote.name} (${quote.ticker})`)
-        .setColor(quote.isUp ? 0x2ecc71 : 0xe74c3c)
-        .addFields(
-            { name: '현재가', value: quote.price, inline: true },
-            { name: '전일 대비', value: `${quote.change} (${quote.changePct})`, inline: true },
-            { name: '전일 종가', value: quote.prevClose, inline: true },
-            { name: '거래량', value: quote.volume, inline: true },
-            { name: '시장', value: quote.market, inline: true }
-        )
-        .setFooter({ text: 'Naver Finance · 실시간 시세' })
-        .setTimestamp();
+    const embed = buildStockEmbed(quote);
 
-    await interaction.editReply({ content: '', components: [], embeds: [embed] });
+    await interaction.editReply({ content: null, components: [], embeds: [embed] });
 }
 
 module.exports.sendQuoteEmbed = sendQuoteEmbed;

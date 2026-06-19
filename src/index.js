@@ -3,15 +3,18 @@ const { Client, GatewayIntentBits, Collection, REST, Routes, MessageFlags } = re
 const cron = require('node-cron');
 const newsCommand = require('./commands/news');
 const stockCommand = require('./commands/stock');
+const briefingCommand = require('./commands/briefing');
 const { sendQuoteEmbed } = require('./commands/stock');
 const { loadCache, updateStockCache, searchStock } = require('./service/stockSearch');
 const { registerScheduler } = require('./scheduler');
+const { warmNewsCache } = require('./utils/fetchNews');
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
 client.commands = new Collection();
 client.commands.set(newsCommand.data.name, newsCommand);
 client.commands.set(stockCommand.data.name, stockCommand);
+client.commands.set(briefingCommand.data.name, briefingCommand);
 
 client.once('ready', async () => {
     console.log(`✅ 봇 로그인 성공: ${client.user.tag}`);
@@ -24,7 +27,7 @@ client.once('ready', async () => {
     try {
         await rest.put(
             Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
-            { body: [newsCommand.data.toJSON(), stockCommand.data.toJSON()] }
+            { body: [newsCommand.data.toJSON(), stockCommand.data.toJSON(), briefingCommand.data.toJSON()] }
         );
         console.log('✅ 슬래시 커맨드 등록 완료');
     } catch (err) {
@@ -36,6 +39,9 @@ client.once('ready', async () => {
 
     // 투자 브리핑 스케줄러
     registerScheduler(client);
+
+    // RSS 캐시 미리 로드 (첫 /뉴스·/브리핑 응답 지연 방지)
+    warmNewsCache();
 });
 
 client.on('interactionCreate', async (interaction) => {
@@ -47,15 +53,15 @@ client.on('interactionCreate', async (interaction) => {
             await command.execute(interaction);
         } catch (err) {
             console.error(`커맨드 오류 [${interaction.commandName}]:`, err.message);
-            const msg = { content: '❌ 오류가 발생했습니다.', flags: MessageFlags.Ephemeral };
+            const msg = { content: '❌ 오류가 발생했습니다.', embeds: [], components: [] };
             try {
                 if (interaction.deferred || interaction.replied) {
                     await interaction.editReply(msg);
                 } else {
-                    await interaction.reply(msg);
+                    await interaction.reply({ ...msg, flags: MessageFlags.Ephemeral });
                 }
-            } catch (replyErr) {
-                console.error('오류 응답 전송 실패:', replyErr.message);
+            } catch {
+                // Unknown interaction / already acknowledged — 무시
             }
         }
         return;

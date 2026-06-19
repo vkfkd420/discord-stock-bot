@@ -63,6 +63,12 @@ npm start     # 프로덕션
 | `GUILD_ID` | ✅ | 슬래시 커맨드 등록할 서버 ID |
 | `CHANNEL_ID` | ✅ | 매일 브리핑을 보낼 채널 ID |
 | `TWELVEDATA_API_KEY` | ⬜ | 브리핑 지수 조회용 ([Twelve Data](https://twelvedata.com)) |
+| `GEMINI_API_KEY` | ✅* | AI 브리핑 — **무료** ([Google AI Studio](https://aistudio.google.com/apikey)) |
+| `GROQ_API_KEY` | ✅* | AI 브리핑 — **무료** ([Groq Console](https://console.groq.com)) |
+| `OPENAI_API_KEY` | ✅* | AI 브리핑 — 유료 ([OpenAI](https://platform.openai.com)) |
+| `LLM_PROVIDER` | ⬜ | `gemini` / `groq` / `openai` (미설정 시 키 있는 provider 자동 선택) |
+
+\* AI 브리핑은 **Gemini, Groq, OpenAI 중 하나**만 설정하면 됩니다.
 
 > ⚠️ `.env` 파일은 Git에 올리지 마세요. 토큰이 노출되면 Developer Portal에서 즉시 재발급하세요.
 
@@ -84,12 +90,23 @@ npm start     # 프로덕션
 
 최신 주식·경제 뉴스 5건을 Embed로 표시합니다.
 
+### `/브리핑`
+
+헤지펀드 리서치 형식의 **AI 투자 브리핑**을 즉시 생성합니다 (약 1~2분 소요).
+
+- 한국·미국 증시 뉴스 분석
+- 핵심 뉴스 TOP 5, 주요 인물 발언, 섹터별 강도
+- 투자자 행동 가이드
+- 결과: 지수 Embed + `.md` 리포트 파일 첨부
+
 ## 자동 스케줄
 
 | 시간 (KST) | 동작 |
 |------------|------|
 | 08:00 | KIND에서 종목 캐시 갱신 |
-| 08:30 | 투자 브리핑 전송 (S&P500, 나스닥, 코스피, 달러/원 + 뉴스) |
+| 08:30 | AI 투자 브리핑 (오전) |
+| 11:00 | AI 투자 브리핑 (11시) |
+| 15:30 | AI 투자 브리핑 (장 마감) |
 
 ## 프로젝트 구조
 
