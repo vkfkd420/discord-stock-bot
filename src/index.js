@@ -4,6 +4,8 @@ const cron = require('node-cron');
 const newsCommand = require('./commands/news');
 const stockCommand = require('./commands/stock');
 const briefingCommand = require('./commands/briefing');
+const calendarCommand = require('./commands/calendar');
+const watchlistCommands = require('./commands/watchlist');
 const { sendQuoteEmbed } = require('./commands/stock');
 const { loadCache, updateStockCache, searchStock } = require('./service/stockSearch');
 const { registerScheduler } = require('./scheduler');
@@ -15,6 +17,10 @@ client.commands = new Collection();
 client.commands.set(newsCommand.data.name, newsCommand);
 client.commands.set(stockCommand.data.name, stockCommand);
 client.commands.set(briefingCommand.data.name, briefingCommand);
+client.commands.set(calendarCommand.data.name, calendarCommand);
+for (const cmd of watchlistCommands.filter((c) => c.data)) {
+    client.commands.set(cmd.data.name, cmd);
+}
 
 client.once('ready', async () => {
     console.log(`✅ 봇 로그인 성공: ${client.user.tag}`);
@@ -27,7 +33,15 @@ client.once('ready', async () => {
     try {
         await rest.put(
             Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
-            { body: [newsCommand.data.toJSON(), stockCommand.data.toJSON(), briefingCommand.data.toJSON()] }
+            {
+                body: [
+                    newsCommand.data.toJSON(),
+                    stockCommand.data.toJSON(),
+                    briefingCommand.data.toJSON(),
+                    calendarCommand.data.toJSON(),
+                    ...watchlistCommands.filter((c) => c.data).map((c) => c.data.toJSON()),
+                ],
+            }
         );
         console.log('✅ 슬래시 커맨드 등록 완료');
     } catch (err) {
@@ -68,10 +82,22 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     // 종목 선택 메뉴
-    if (interaction.isStringSelectMenu() && interaction.customId === 'stock_select') {
-        await interaction.deferUpdate();
-        const stock = JSON.parse(interaction.values[0]);
-        await sendQuoteEmbed(interaction, stock);
+    if (interaction.isStringSelectMenu()) {
+        if (interaction.customId === 'stock_select') {
+            await interaction.deferUpdate();
+            const stock = JSON.parse(interaction.values[0]);
+            await sendQuoteEmbed(interaction, stock);
+            return;
+        }
+
+        if (interaction.customId === 'watchlist_register_select') {
+            await watchlistCommands.handleRegisterSelect(interaction);
+            return;
+        }
+        if (interaction.customId === 'watchlist_remove_select') {
+            await watchlistCommands.handleRemoveSelect(interaction);
+            return;
+        }
     }
 });
 
