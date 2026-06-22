@@ -6,6 +6,7 @@ const stockCommand = require('./commands/stock');
 const briefingCommand = require('./commands/briefing');
 const calendarCommand = require('./commands/calendar');
 const watchlistCommands = require('./commands/watchlist');
+const whyCommand = require('./commands/why');
 const { sendQuoteEmbed } = require('./commands/stock');
 const { loadCache, updateStockCache, searchStock } = require('./service/stockSearch');
 const { registerScheduler } = require('./scheduler');
@@ -21,6 +22,7 @@ client.commands.set(calendarCommand.data.name, calendarCommand);
 for (const cmd of watchlistCommands.filter((c) => c.data)) {
     client.commands.set(cmd.data.name, cmd);
 }
+client.commands.set(whyCommand.data.name, whyCommand);
 
 client.once('ready', async () => {
     console.log(`✅ 봇 로그인 성공: ${client.user.tag}`);
@@ -40,6 +42,7 @@ client.once('ready', async () => {
                     briefingCommand.data.toJSON(),
                     calendarCommand.data.toJSON(),
                     ...watchlistCommands.filter((c) => c.data).map((c) => c.data.toJSON()),
+                    whyCommand.data.toJSON(),
                 ],
             }
         );
@@ -96,6 +99,10 @@ client.on('interactionCreate', async (interaction) => {
         }
         if (interaction.customId === 'watchlist_remove_select') {
             await watchlistCommands.handleRemoveSelect(interaction);
+            return;
+        }
+        if (interaction.customId === 'why_select') {
+            await whyCommand.handleWhySelect(interaction);
             return;
         }
     }

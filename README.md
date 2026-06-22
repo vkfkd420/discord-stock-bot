@@ -13,6 +13,7 @@ Discord 슬래시 커맨드로 **한국·미국 주식 시세**, **경제 뉴스
 | `/관심등록` | 관심종목 등록 (한국·미국, 최대 20개) |
 | `/관심목록` | 관심종목 시세 + AI **오늘의 포인트** |
 | `/관심삭제` | 관심종목 삭제 |
+| `/왜` | 종목 상승·하락 원인 AI 분석 (한국·미국) |
 | 자동 브리핑 | 08:30 / 11:00 / 15:30 (KST) 지정 채널 전송 |
 | 종목 캐시 | KIND 상장법인 목록을 로컬 캐시해 한글 종목명 검색 지원 |
 
@@ -24,6 +25,7 @@ Discord 슬래시 커맨드로 **한국·미국 주식 시세**, **경제 뉴스
 /주가 삼성전자 → 캐시에서 종목코드(005930) 검색 → 네이버 금융 API
 /관심등록 NVDA → Yahoo Chart API로 티커 검증 → 사용자별 watchlist.json 저장
 /관심목록 → 시세 조회 + RSS 뉴스 분석 → Gemini로 "오늘의 포인트" 요약
+/왜 NVDA → 시세·뉴스·섹터·지수 종합 → AI가 상승/하락 원인 분석
 /일정 → TradingView·ForexFactory·FOMC·실적 캘린더 통합
 ```
 
@@ -31,7 +33,7 @@ Discord 슬래시 커맨드로 **한국·미국 주식 시세**, **경제 뉴스
 - **미국 주식 시세**: Yahoo Finance Chart API
 - **경제 일정**: TradingView · ForexFactory · FOMC · Nasdaq 실적
 - **뉴스**: 한국경제 · 매일경제 · Yahoo Finance · Investing.com RSS
-- **AI 요약**: Gemini / Groq / OpenAI (브리핑, 관심종목 포인트)
+- **AI 요약**: Gemini / Groq / OpenAI (브리핑, 관심종목 포인트, `/왜` 원인 분석)
 
 ## 사전 준비
 
@@ -71,12 +73,12 @@ npm start     # 프로덕션
 | `GUILD_ID` | ✅ | 슬래시 커맨드 등록할 서버 ID |
 | `CHANNEL_ID` | ✅ | 매일 브리핑을 보낼 채널 ID |
 | `TWELVEDATA_API_KEY` | ⬜ | 브리핑 지수 조회·미국 종목명 검색 ([Twelve Data](https://twelvedata.com)) |
-| `GEMINI_API_KEY` | ✅* | AI 브리핑·관심종목 포인트 — **무료** ([Google AI Studio](https://aistudio.google.com/apikey)) |
+| `GEMINI_API_KEY` | ✅* | AI 브리핑·관심종목·`/왜` 분석 — **무료** ([Google AI Studio](https://aistudio.google.com/apikey)) |
 | `GROQ_API_KEY` | ✅* | AI 브리핑 — **무료** ([Groq Console](https://console.groq.com)) |
 | `OPENAI_API_KEY` | ✅* | AI 브리핑 — 유료 ([OpenAI](https://platform.openai.com)) |
 | `LLM_PROVIDER` | ⬜ | `gemini` / `groq` / `openai` (미설정 시 키 있는 provider 자동 선택) |
 
-\* AI 기능은 **Gemini, Groq, OpenAI 중 하나**만 설정하면 됩니다. `/관심목록`의 오늘의 포인트는 LLM API가 필요합니다.
+\* AI 기능은 **Gemini, Groq, OpenAI 중 하나**만 설정하면 됩니다. `/관심목록`, `/왜`는 LLM API가 필요합니다.
 
 > ⚠️ `.env` 파일은 Git에 올리지 마세요. 토큰이 노출되면 Developer Portal에서 즉시 재발급하세요.
 
@@ -138,6 +140,31 @@ npm start     # 프로덕션
 
 관심목록에서 해당 종목을 삭제합니다.
 
+### `/왜 종목:<이름·코드·티커>`
+
+```
+/왜 종목:삼성전자
+/왜 종목:NVDA
+/왜 종목:SK하이닉스
+```
+
+종목이 **오늘 왜 올랐는지/내렸는지** AI가 원인을 분석합니다.
+
+- 현재가·등락률·거래량 표시
+- 등락 방향에 따라 **「오늘 왜 오르지?」** / **「오늘 왜 내리지?」** 형식 출력
+- 주요 원인 최대 3개, 관련 뉴스 요약, 시장 영향, 지속 가능성, 주의할 점
+- 한국·미국 주식 모두 지원 (종목명·코드·티커)
+
+**뉴스 조회 범위 (동적)**
+
+| 조건 | 범위 |
+|------|------|
+| 기본 | 최근 24시간 |
+| 월요일 (KST) | 72시간 |
+| 장 시작 후 1시간 (KR 09~10시 / US 09:30~10:30 ET) | 48시간 |
+
+**뉴스가 부족할 때** 섹터 흐름, 시장 지수, 거래량(평균 대비), 동종업계 움직임으로 보조 분석합니다.
+
 ## 자동 스케줄
 
 | 시간 (KST) | 동작 |
@@ -158,7 +185,8 @@ discord-stock-bot/
 │   │   ├── news.js               # /뉴스
 │   │   ├── briefing.js           # /브리핑
 │   │   ├── calendar.js           # /일정
-│   │   └── watchlist.js          # /관심등록 · /관심목록 · /관심삭제
+│   │   ├── watchlist.js          # /관심등록 · /관심목록 · /관심삭제
+│   │   └── why.js                # /왜
 │   ├── service/
 │   │   ├── stockSearch.js        # 종목 캐시·검색·네이버 시세
 │   │   ├── briefingGenerator.js  # AI 브리핑 생성
@@ -166,11 +194,14 @@ discord-stock-bot/
 │   │   ├── watchlistStore.js     # 관심종목 저장
 │   │   ├── watchlistResolver.js  # 종목명·티커 해석
 │   │   ├── watchlistQuote.js     # 관심종목 시세
-│   │   └── watchlistPoint.js     # 오늘의 포인트 (AI)
+│   │   ├── watchlistPoint.js     # 오늘의 포인트 (AI)
+│   │   ├── whyAnalyzer.js        # /왜 원인 분석 (AI)
+│   │   └── whyQuote.js           # /왜 시세·거래량
 │   ├── ui/
 │   │   ├── newsView.js           # /뉴스 UI
 │   │   ├── calendarView.js       # /일정 UI
-│   │   └── watchlistView.js      # /관심목록 UI
+│   │   ├── watchlistView.js      # /관심목록 UI
+│   │   └── whyView.js            # /왜 UI
 │   ├── utils/
 │   │   ├── fetchStock.js         # 브리핑용 지수 시세
 │   │   ├── fetchNews.js          # RSS 뉴스
@@ -190,7 +221,8 @@ discord-stock-bot/
 - **봇은 한 번만 실행**하세요. 같은 토큰으로 프로세스가 2개 떠 있으면 `Unknown interaction` 오류가 날 수 있습니다.
 - 종목 캐시는 24시간마다 자동 갱신됩니다. 최초 실행 시 KIND에서 다운로드합니다.
 - 브리핑의 해외 지수는 Twelve Data API 키가 필요합니다. `/주가`(한국 주식)는 네이버 API를 사용하므로 별도 키가 필요 없습니다.
-- `/관심목록`의 미국 주식 시세는 Yahoo Finance API를 사용합니다.
+- `/관심목록`, `/왜`의 미국 주식 시세는 Yahoo Finance API를 사용합니다.
+- `/왜`는 월요일·장 초반 등 뉴스가 적을 때 조회 범위를 자동 확장합니다.
 - `watchlist.json`은 사용자별 데이터이므로 Git에 포함되지 않습니다.
 
 ## 라이선스

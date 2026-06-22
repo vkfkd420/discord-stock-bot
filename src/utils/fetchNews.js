@@ -50,11 +50,15 @@ function calcImpact(title) {
     return '🟢 낮음';
 }
 
-function isWithin24Hours(pubDate) {
+function isWithinHours(pubDate, hours) {
     if (!pubDate) return true;
     const published = new Date(pubDate);
     if (Number.isNaN(published.getTime())) return true;
-    return Date.now() - published.getTime() <= 24 * 60 * 60 * 1000;
+    return Date.now() - published.getTime() <= hours * 60 * 60 * 1000;
+}
+
+function isWithin24Hours(pubDate) {
+    return isWithinHours(pubDate, 24);
 }
 
 function isKoreanNews(item) {
@@ -115,6 +119,39 @@ async function fetchFeedItems(url, perFeed = 15) {
     }
 }
 
+async function fetchNewsExtended(maxAgeHours = 24) {
+    const [usRaw, krRaw] = await Promise.all([
+        Promise.all(RSS_FEEDS.us.map((url) => fetchFeedItems(url, 20))),
+        Promise.all(RSS_FEEDS.kr.map((url) => fetchFeedItems(url, 20))),
+    ]);
+
+    const dedupeRaw = (items) => {
+        const seen = new Set();
+        return items.filter((item) => {
+            const key = (item.title || '').trim();
+            if (!key || seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
+    };
+
+    const within = (item) => isWithinHours(item.pubDate, maxAgeHours);
+
+    const allUs = dedupeRaw(usRaw.flat().filter(within)).map((item) => normalizeItem(item, 'us'));
+    const allKr = dedupeRaw(krRaw.flat().filter(within)).map((item) => normalizeItem(item, 'kr'));
+
+    const krFromUs = allUs.filter(isKoreanNews);
+    const seenKr = new Set();
+    const kr = [...allKr, ...krFromUs].filter((n) => {
+        if (seenKr.has(n.title)) return false;
+        seenKr.add(n.title);
+        return true;
+    });
+
+    const us = allUs.filter((n) => !isKoreanNews(n));
+    return { kr, us, all: [...kr, ...us] };
+}
+
 async function fetchNewsByRegion({ force = false } = {}) {
     if (!force && newsCache && Date.now() - newsCacheAt < CACHE_TTL_MS) {
         return newsCache;
@@ -172,4 +209,11 @@ async function fetchNews({ limit = 10, region = 'all' } = {}) {
     return [...kr, ...us].slice(0, limit);
 }
 
-module.exports = { fetchNews, fetchNewsByRegion, warmNewsCache };
+module.exports = {
+    fetchNews,
+    fetchNewsByRegion,
+    fetchNewsExtended,
+    warmNewsCache,
+    detectSectors,
+    SECTOR_MAP,
+};
